@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: scriba_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  scriba:
+    build: .
+    container_name: scriba_app
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    command: ["bun", "run", "src/index.ts"]
+
+volumes:
+  postgres_data:

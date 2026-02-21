@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+model Source {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  domain      String   @unique
+  baseUrl     String
+  apiType     String
+  isActive    Boolean  @default(true)
+
+  lastFetchedAt DateTime?
+  lastError     String?
+  errorCount    Int      @default(0)
+  lastSeenPublishedAt DateTime?
+
+  // Operational Monitoring Fields
+  avgArticlesPerRun Float @default(0)
+  avgTimePerRunMs   Float @default(0)
+
+  articles     Article[]
+  journalistLinks JournalistSource[]
+  categories  Category[]
+  tags        Tag[]
+
+  createdAt DateTime @default(now())
+}
+
+model Journalist {
+  id              String   @id @default(uuid())
+  name            String
+  profileImageUrl String?
+  confidenceScore Float    @default(0.5)
+  sourceUniqueId  String?  @unique
+
+  sourceLinks JournalistSource[]
+  articles    Article[]
+
+  createdAt DateTime @default(now())
+
+  @@index([name])
+}
+
+model JournalistSource {
+  journalist   Journalist @relation(fields: [journalistId], references: [id])
+  journalistId String
+
+  source       Source @relation(fields: [sourceId], references: [id])
+  sourceId     String
+
+  startDate    DateTime?
+  endDate      DateTime?
+  confidence   Float     @default(0.5)
+
+  @@id([journalistId, sourceId])
+}
+
+model Article {
+  id            String   @id @default(uuid())
+  source        Source   @relation(fields: [sourceId], references: [id])
+  sourceId      String
+
+  journalist    Journalist? @relation(fields: [journalistId], references: [id])
+  journalistId  String?
+
+  externalId    String
+  canonicalUrl  String
+  title         String
+  summary       String?
+  thumbnailUrl  String?
+  coverImageUrl String?
+  bodyHash      String
+
+  publishedAt   DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  versions      ArticleVersion[]
+  categories    ArticleCategory[]
+  tags          ArticleTag[]
+
+  @@unique([sourceId, externalId])
+  @@index([publishedAt])
+}
+
+model ArticleVersion {
+  id         String   @id @default(uuid())
+  article    Article  @relation(fields: [articleId], references: [id])
+  articleId  String
+
+  title      String
+  summary    String?
+  body       String
+
+  fetchedAt  DateTime @default(now())
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String
+  source    Source   @relation(fields: [sourceId], references: [id])
+  sourceId  String
+
+  articles  ArticleCategory[]
+
+  @@unique([sourceId, name])
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String
+  source    Source   @relation(fields: [sourceId], references: [id])
+  sourceId  String
+
+  articles  ArticleTag[]
+
+  @@unique([sourceId, name])
+}
+
+model ArticleCategory {
+  article    Article  @relation(fields: [articleId], references: [id])
+  articleId  String
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+
+  @@id([articleId, categoryId])
+}
+
+model ArticleTag {
+  article   Article @relation(fields: [articleId], references: [id])
+  articleId String
+  tag       Tag     @relation(fields: [tagId], references: [id])
+  tagId     String
+
+  @@id([articleId, tagId])
+}
