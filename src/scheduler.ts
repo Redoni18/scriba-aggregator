@@ -123,6 +123,26 @@ async function ingestSource(source: any) {
 
 async function runScheduler() {
     console.log(`🕒 Starting Master Scheduler...`);
+    const isSingleRun = process.argv.includes('--run-once');
+
+    if (isSingleRun) {
+        console.log(`\n--- Running Single Execution Mode at ${new Date().toISOString()} ---`);
+        try {
+            const sources = await db.source.findMany({
+                where: { isActive: true }
+            });
+
+            console.log(`Found ${sources.length} active sources.`);
+
+            for (const source of sources) {
+                await ingestSource(source);
+            }
+        } catch (error) {
+            console.error(`❌ Error in single-run scheduler cycle:`, error);
+            process.exitCode = 1;
+        }
+        return; // Exit after single run completes successfully or triggers errors. Process handles teardown below.
+    }
 
     while (true) {
         console.log(`\n--- Starting new ingestion cycle at ${new Date().toISOString()} ---`);
@@ -153,4 +173,14 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-runScheduler().catch(console.error);
+runScheduler().then(async () => {
+    if (process.argv.includes('--run-once')) {
+        console.log('\nSingle run complete. Disconnecting from DB and exiting...');
+        await db.$disconnect();
+        process.exit(process.exitCode || 0);
+    }
+}).catch(async (err) => {
+    console.error('Fatal error in scheduler:', err);
+    await db.$disconnect();
+    process.exit(1);
+});

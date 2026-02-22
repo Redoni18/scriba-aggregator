@@ -5,7 +5,8 @@
     "prisma:generate": "bun --bun prisma generate",
     "migration": "bun --bun prisma migrate dev",
     "build": "bun run src/index.ts",
-    "start": "bun run dist/index.js"
+    "start": "bun run dist/index.js",
+    "start:scheduler": "bun run src/scheduler.ts --run-once"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.2.0",
